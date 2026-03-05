@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>AETHERIA · Companion Terminal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --void: #0a0a0f;
+            --void-light: #12121a;
+            --void-lighter: #1a1a25;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.4);
+            --gold: #fbbf24;
+            --gold-glow: rgba(251, 191, 36, 0.3);
+            --corruption: #dc2626;
+            --life: #10b981;
+            --mana: #3b82f6;
+            --rare: #a855f7;
+            --epic: #ec4899;
+            --legendary: #f59e0b;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.08);
+            --glass: rgba(255, 255, 255, 0.03);
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            background: var(--void);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            min-height: 100vh;
+            padding: 16px 12px 80px;
+            background-image: radial-gradient(circle at 30% 40%, rgba(99,102,241,0.08) 0%, transparent 40%),
+                              radial-gradient(circle at 80% 70%, rgba(168,85,247,0.05) 0%, transparent 45%);
+        }
+        .container { max-width: 700px; margin: 0 auto; }
+
+        /* header */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(99,102,241,0.2);
+        }
+        .logo {
+            font-family: 'Cinzel', serif;
+            font-size: 1.2rem;
+            background: linear-gradient(135deg, #a5b4fc, #818cf8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .sync-btn {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 30px;
+            padding: 6px 16px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .sync-btn:active { transform: scale(0.96); background: rgba(99,102,241,0.1); }
+
+        /* cards */
+        .card {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 16px 14px;
+            margin-bottom: 18px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+        }
+        .card-title {
+            font-family: 'Cinzel', serif;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--accent);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* stats row */
+        .stat-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        .stat-pill {
+            background: rgba(99,102,241,0.08);
+            border: 1px solid rgba(99,102,241,0.2);
+            border-radius: 30px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            flex: 1 1 auto;
+        }
+        .stat-pill.gold { border-color: rgba(251,191,36,0.3); color: var(--gold); }
+        .stat-pill.mana { border-color: rgba(59,130,246,0.3); color: var(--mana); }
+        .stat-pill.xp { border-color: rgba(168,85,247,0.3); color: var(--rare); }
+
+        /* creature grid */
+        .creature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .creature-card {
+            background: rgba(10,10,20,0.6);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 10px 6px;
+            text-align: center;
+            transition: 0.15s;
+            cursor: pointer;
+            position: relative;
+        }
+        .creature-card.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.3);
+        }
+        .creature-emoji { font-size: 2.4rem; line-height: 1; margin-bottom: 4px; }
+        .creature-name { font-weight: 600; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .creature-level { font-size: 0.6rem; color: var(--text-muted); margin-top: 2px; }
+        .bond-bar {
+            width: 100%; height: 3px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 6px; overflow: hidden;
+        }
+        .bond-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--rare)); border-radius: 3px; transition: width 0.5s; }
+
+        /* expedition section */
+        .expedition-form {
+            background: rgba(0,0,0,0.2);
+            border-radius: 16px;
+            padding: 12px;
+            margin: 16px 0 8px;
+        }
+        .expedition-select {
+            width: 100%;
+            background: var(--void-lighter);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            color: var(--text);
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            outline: none;
+        }
+        .expedition-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: rgba(99,102,241,0.05);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .expedition-option:active { transform: scale(0.97); background: rgba(99,102,241,0.12); }
+        .expedition-option .icon { font-size: 1.8rem; }
+        .expedition-option .details { flex: 1; }
+        .expedition-option .name { font-weight: 600; font-size: 0.9rem; }
+        .expedition-option .reward { font-size: 0.7rem; color: var(--gold); }
+
+        .active-expedition {
+            background: rgba(16,185,129,0.07);
+            border: 1px solid rgba(16,185,129,0.3);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .exp-timer { font-family: 'Space Mono', monospace; font-size: 1.1rem; color: var(--life); }
+
+        .btn {
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            border: none;
+            border-radius: 30px;
+            padding: 14px 24px;
+            font-weight: 600;
+            color: white;
+            width: 100%;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.15s;
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-secondary {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            color: var(--text);
+            box-shadow: none;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 40px;
+            padding: 4px;
+        }
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px 0;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .tab.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 30px 20px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 90%;
+            max-width: 400px;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(10,10,20,0.9);
+            border: 1px solid var(--accent);
+            border-radius: 16px;
+            padding: 12px 18px;
+            color: var(--text);
+            font-size: 0.8rem;
+            backdrop-filter: blur(12px);
+            animation: toastIn 0.3s var(--ease-spring);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .footer-note {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.6rem;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container" id="app">
+    <div class="header">
+        <div class="logo">◈ AETHERIA · COMPANION</div>
+        <div class="sync-btn" id="syncBtn">
+            <span>⟳</span> <span>sync</span>
+        </div>
+    </div>
+
+    <div class="tabs" id="tabs">
+        <div class="tab active" data-tab="overview">📊 Overview</div>
+        <div class="tab" data-tab="creatures">👥 Creatures</div>
+        <div class="tab" data-tab="expeditions">⏳ Expeditions</div>
+        <div class="tab" data-tab="stats">📈 Stats</div>
+    </div>
+
+    <!-- Overview Tab -->
+    <div id="tab-overview" class="tab-content" style="display: block;">
+        <div class="card">
+            <div class="card-title"><span>🏠</span> Realm Snapshot</div>
+            <div class="stat-row">
+                <div class="stat-pill gold"><span>💰</span> <span id="overview-gold">0</span></div>
+                <div class="stat-pill mana"><span>◈</span> <span id="overview-mana">0/0</span></div>
+                <div class="stat-pill xp"><span>📈</span> <span id="overview-level">Lv.1</span></div>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                <div style="flex:1; background: var(--glass); border-radius: 12px; padding: 10px; text-align: center;">
+                    <div style="font-size: 1.5rem; color: var(--accent);" id="overview-creatures">0</div>
+                    <div style="font-size: 0.6rem;">Companions</div>
+                </div>
+                <div style="flex:1; background: var(--glass); border-radius: 12px; padding: 10px; text-align: center;">
+                    <div style="font-size: 1.5rem; color: var(--rare);" id="overview-floor">1</div>
+                    <div style="font-size: 0.6rem;">Delve Floor</div>
+                </div>
+                <div style="flex:1; background: var(--glass); border-radius: 12px; padding: 10px; text-align: center;">
+                    <div style="font-size: 1.5rem; color: var(--gold);" id="overview-achievements">0</div>
+                    <div style="font-size: 0.6rem;">Achievements</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span>⚡</span> Quick Actions</div>
+            <button class="btn btn-secondary" style="margin-bottom: 8px;" onclick="CompanionApp.claimDailyBonus()">🎁 Claim Daily Companion Bonus</button>
+            <button class="btn btn-secondary" onclick="CompanionApp.remoteOracle()">🔮 Ask Remote Oracle</button>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span>🌟</span> Active Expeditions</div>
+            <div id="active-expeditions-list">
+                <div class="empty-state">No active expeditions</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Creatures Tab -->
+    <div id="tab-creatures" class="tab-content" style="display: none;">
+        <div class="card">
+            <div class="card-title"><span>👥</span> Your Companions</div>
+            <div id="creature-grid" class="creature-grid"></div>
+            <div style="margin-top: 16px;">
+                <button class="btn btn-secondary" id="refresh-creatures" onclick="CompanionApp.renderCreatures()">⟳ Refresh</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expeditions Tab -->
+    <div id="tab-expeditions" class="tab-content" style="display: none;">
+        <div class="card">
+            <div class="card-title"><span>⏳</span> Remote Expeditions</div>
+            <p style="color: var(--text-muted); font-size:0.8rem; margin-bottom: 12px;">Send a creature on a timed expedition. Rewards are added directly to your main game when completed.</p>
+            
+            <div class="expedition-form">
+                <select id="exp-creature-select" class="expedition-select">
+                    <option value="">— Select a creature —</option>
+                </select>
+
+                <div id="expedition-options">
+                    <div class="expedition-option" data-duration="300" data-reward-gold="250" data-reward-mana="50">
+                        <div class="icon">⏱️</div>
+                        <div class="details">
+                            <div class="name">Quick Scavenge</div>
+                            <div class="reward">5 min · +250💰 +50◈</div>
+                        </div>
+                    </div>
+                    <div class="expedition-option" data-duration="900" data-reward-gold="800" data-reward-mana="150">
+                        <div class="icon">🌙</div>
+                        <div class="details">
+                            <div class="name">Deep Recon</div>
+                            <div class="reward">15 min · +800💰 +150◈</div>
+                        </div>
+                    </div>
+                    <div class="expedition-option" data-duration="3600" data-reward-gold="2500" data-reward-mana="500" data-reward-item="void_crystal">
+                        <div class="icon">🌀</div>
+                        <div class="details">
+                            <div class="name">Void Expedition</div>
+                            <div class="reward">60 min · +2500💰 +500◈ + rare material</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn" id="start-expedition-btn" disabled onclick="CompanionApp.startExpedition()">🚀 Start Expedition</button>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <div class="card-title"><span>📋</span> Active</div>
+                <div id="expeditions-active-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Tab -->
+    <div id="tab-stats" class="tab-content" style="display: none;">
+        <div class="card">
+            <div class="card-title"><span>📊</span> Lifetime Statistics</div>
+            <div id="stats-content" style="color: var(--text-muted); font-size: 0.85rem; line-height: 2;">
+                Loading...
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title"><span>🏆</span> Achievements</div>
+            <div id="achievements-mini"></div>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        ⬡ Companion Terminal v1.0 · data syncs with main game via localStorage
+    </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+    (function() {
+        // ============================================================
+        // AETHERIA COMPANION APP
+        // ============================================================
+        const STORAGE_KEY = 'aetheria_ultimate_v5';  // matches main game
+        const COMPANION_KEY = 'aetheria_companion_v1';
+
+        // Default empty state
+        let gameState = {
+            gold: 0, mana: 100, maxMana: 200,
+            creatures: [],
+            player: { level: 1, xp: 0, maxXp: 100, battlesWon: 0, title: 'Novice' },
+            floor: 1,
+            achievements: []
+        };
+
+        // Companion data (expeditions, bonuses)
+        let companionData = {
+            expeditions: [],          // { creatureId, name, emoji, endTime, rewardGold, rewardMana, rewardItem }
+            lastDaily: null,
+            dailyBonusClaimed: false,
+            remoteOracleHistory: []
+        };
+
+        // UI state
+        let currentTab = 'overview';
+        let selectedCreatureId = null;
+
+        // ==================== Load / Save ====================
+        function loadGameState() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    // merge with defaults
+                    gameState = { ...gameState, ...parsed };
+                    // ensure nested objects
+                    if (!gameState.player) gameState.player = { level: 1, xp: 0, maxXp: 100 };
+                    if (!gameState.creatures) gameState.creatures = [];
+                } else {
+                    showToast('No main game save found', 'Play AETHERIA first to sync', '⚠️');
+                }
+            } catch (e) {
+                console.warn('Failed to load game state', e);
+            }
+        }
+
+        function loadCompanionData() {
+            try {
+                const saved = localStorage.getItem(COMPANION_KEY);
+                if (saved) {
+                    companionData = JSON.parse(saved);
+                } else {
+                    companionData = { expeditions: [], lastDaily: null, dailyBonusClaimed: false, remoteOracleHistory: [] };
+                }
+            } catch (e) {}
+        }
+
+        function saveCompanionData() {
+            try {
+                localStorage.setItem(COMPANION_KEY, JSON.stringify(companionData));
+            } catch (e) {}
+        }
+
+        // Sync from main game (manual refresh)
+        function syncFromMain() {
+            loadGameState();
+            renderAll();
+            showToast('Synchronized', 'Data loaded from main game', '⟳');
+        }
+
+        // ==================== Rendering ====================
+        function renderAll() {
+            renderOverview();
+            renderCreatures();
+            renderExpeditionSelect();
+            renderActiveExpeditions();
+            renderStats();
+            renderAchievementsMini();
+        }
+
+        function renderOverview() {
+            document.getElementById('overview-gold').textContent = gameState.gold.toLocaleString();
+            document.getElementById('overview-mana').textContent = `${Math.floor(gameState.mana)}/${gameState.maxMana}`;
+            const lvl = gameState.player?.level || 1;
+            document.getElementById('overview-level').textContent = `Lv.${lvl}`;
+            document.getElementById('overview-creatures').textContent = gameState.creatures.length;
+            document.getElementById('overview-floor').textContent = gameState.floor || 1;
+            const achCount = (gameState.achievements || []).length;
+            document.getElementById('overview-achievements').textContent = achCount;
+        }
+
+        function renderCreatures() {
+            const grid = document.getElementById('creature-grid');
+            const creatures = gameState.creatures || [];
+            if (creatures.length === 0) {
+                grid.innerHTML = '<div class="empty-state">No companions found. Play the main game to collect creatures.</div>';
+                return;
+            }
+            grid.innerHTML = creatures.map(c => {
+                const bond = c.bond || 0;
+                const bondWidth = Math.min(bond, 100);
+                const rarityColor = getRarityColor(c.rarity);
+                const selectedClass = (selectedCreatureId === c.id) ? 'selected' : '';
+                return `<div class="creature-card ${selectedClass}" data-creature-id="${c.id}" onclick="CompanionApp.selectCreature(${c.id})">
+                    <div class="creature-emoji">${c.emoji || '✨'}</div>
+                    <div class="creature-name" style="color:${rarityColor};">${c.name || 'Unnamed'}</div>
+                    <div class="creature-level">Lv.${c.level || 1} · Bond ${bond}%</div>
+                    <div class="bond-bar"><div class="bond-fill" style="width:${bondWidth}%;"></div></div>
+                </div>`;
+            }).join('');
+        }
+
+        function getRarityColor(rarity) {
+            const map = {
+                'Common': '#94a3b8', 'Uncommon': '#22c55e', 'Rare': '#3b82f6',
+                'Epic': '#a855f7', 'Legendary': '#f59e0b', 'Ultra': '#ec4899'
+            };
+            return map[rarity] || '#94a3b8';
+        }
+
+        function renderExpeditionSelect() {
+            const select = document.getElementById('exp-creature-select');
+            const creatures = gameState.creatures || [];
+            if (creatures.length === 0) {
+                select.innerHTML = '<option value="">No creatures available</option>';
+                document.getElementById('start-expedition-btn').disabled = true;
+                return;
+            }
+            // filter out creatures already on expedition
+            const activeIds = companionData.expeditions.map(e => e.creatureId);
+            const available = creatures.filter(c => !activeIds.includes(c.id));
+            if (available.length === 0) {
+                select.innerHTML = '<option value="">All creatures are on expeditions</option>';
+                document.getElementById('start-expedition-btn').disabled = true;
+                return;
+            }
+            select.innerHTML = '<option value="">— Select a creature —</option>' + 
+                available.map(c => `<option value="${c.id}">${c.emoji} ${c.name} (Lv.${c.level})</option>`).join('');
+            document.getElementById('start-expedition-btn').disabled = true; // until selection
+        }
+
+        // called when creature card clicked
+        window.CompanionApp = window.CompanionApp || {};
+        CompanionApp.selectCreature = function(id) {
+            selectedCreatureId = id;
+            // update select dropdown
+            const select = document.getElementById('exp-creature-select');
+            if (select) select.value = id;
+            document.getElementById('start-expedition-btn').disabled = false;
+            // visual highlight
+            renderCreatures(); // re-render to show selected
+        };
+
+        // handle expedition option click
+        document.querySelectorAll('.expedition-option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                const select = document.getElementById('exp-creature-select');
+                if (!select.value) {
+                    showToast('Select a creature first', '', '👤');
+                    return;
+                }
+                // store selected expedition params
+                const duration = parseInt(this.dataset.duration);
+                const gold = parseInt(this.dataset.rewardGold);
+                const mana = parseInt(this.dataset.rewardMana);
+                const item = this.dataset.rewardItem || null;
+                const creatureId = parseInt(select.value);
+                const creature = gameState.creatures.find(c => c.id === creatureId);
+                if (!creature) return;
+
+                // check if already on expedition
+                if (companionData.expeditions.some(e => e.creatureId === creatureId)) {
+                    showToast('Creature already on expedition', '', '⏳');
+                    return;
+                }
+
+                const endTime = Date.now() + duration * 1000;
+                companionData.expeditions.push({
+                    creatureId,
+                    name: creature.name,
+                    emoji: creature.emoji,
+                    endTime,
+                    rewardGold: gold,
+                    rewardMana: mana,
+                    rewardItem: item,
+                    started: Date.now()
+                });
+                saveCompanionData();
+                renderActiveExpeditions();
+                renderExpeditionSelect();
+                showToast('Expedition started!', `${creature.name} returns in ${Math.floor(duration/60)} min`, '🚀');
+            });
+        });
+
+        function renderActiveExpeditions() {
+            const now = Date.now();
+            // filter expired
+            companionData.expeditions = companionData.expeditions.filter(e => e.endTime > now);
+            saveCompanionData();
+
+            const container = document.getElementById('expeditions-active-list');
+            const overviewContainer = document.getElementById('active-expeditions-list');
+            if (!container) return;
+
+            if (companionData.expeditions.length === 0) {
+                container.innerHTML = '<div class="empty-state">No active expeditions</div>';
+                if (overviewContainer) overviewContainer.innerHTML = '<div class="empty-state">No active expeditions</div>';
+                return;
+            }
+
+            const items = companionData.expeditions.map(e => {
+                const remaining = Math.max(0, e.endTime - now);
+                const mins = Math.floor(remaining / 60000);
+                const secs = Math.floor((remaining % 60000) / 1000);
+                const timeStr = `${mins}:${secs.toString().padStart(2,'0')}`;
+                return `<div class="active-expedition">
+                    <div style="font-size:2rem;">${e.emoji || '✨'}</div>
+                    <div style="flex:1;">
+                        <div style="font-weight:600;">${e.name}</div>
+                        <div style="font-size:0.7rem; color:var(--gold);">💰${e.rewardGold} ◈${e.rewardMana}</div>
+                    </div>
+                    <div class="exp-timer">${timeStr}</div>
+                </div>`;
+            }).join('');
+
+            container.innerHTML = items;
+            if (overviewContainer) overviewContainer.innerHTML = items;
+        }
+
+        function renderStats() {
+            const statsDiv = document.getElementById('stats-content');
+            const p = gameState.player || {};
+            const totalXp = p.xp || 0;
+            const maxXp = p.maxXp || 100;
+            const battles = p.battlesWon || 0;
+            const creatures = gameState.creatures.length;
+            const floor = gameState.floor || 1;
+            const goldTotal = gameState.gold || 0;
+
+            statsDiv.innerHTML = `
+                <div style="display:flex; justify-content:space-between;"><span>Player Level:</span> <span style="color:var(--accent);">${p.level || 1}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Experience:</span> <span>${totalXp} / ${maxXp}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Battles Won:</span> <span style="color:var(--life);">${battles}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Creatures Owned:</span> <span>${creatures}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Deepest Floor:</span> <span style="color:var(--rare);">${floor}</span></div>
+                <div style="display:flex; justify-content:space-between;"><span>Total Gold:</span> <span style="color:var(--gold);">${goldTotal.toLocaleString()}</span></div>
+            `;
+        }
+
+        function renderAchievementsMini() {
+            const achDiv = document.getElementById('achievements-mini');
+            const achievements = gameState.achievements || [];
+            if (achievements.length === 0) {
+                achDiv.innerHTML = '<div class="empty-state">No achievements yet</div>';
+                return;
+            }
+            const list = achievements.slice(0, 5).map(ach => 
+                `<div style="margin-bottom:4px;">🏆 ${ach}</div>`
+            ).join('');
+            achDiv.innerHTML = list + (achievements.length > 5 ? `<div style="color:var(--text-muted);">+${achievements.length-5} more</div>` : '');
+        }
+
+        // ==================== Actions ====================
+        CompanionApp.startExpedition = function() {
+            // actually handled by option click; this is just safety
+        };
+
+        CompanionApp.claimDailyBonus = function() {
+            const today = new Date().toDateString();
+            if (companionData.lastDaily === today) {
+                showToast('Already claimed', 'Daily bonus resets tomorrow', '⏳');
+                return;
+            }
+            // give bonus directly to gameState and persist to main save
+            const bonusGold = 200;
+            const bonusMana = 50;
+            gameState.gold = (gameState.gold || 0) + bonusGold;
+            gameState.mana = Math.min(gameState.maxMana, (gameState.mana || 0) + bonusMana);
+            companionData.lastDaily = today;
+            companionData.dailyBonusClaimed = true;
+
+            // write back to main storage
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+            } catch(e) {}
+
+            saveCompanionData();
+            renderOverview();
+            showToast('Daily Bonus Claimed!', `+${bonusGold}💰 +${bonusMana}◈`, '🎁');
+        };
+
+        CompanionApp.remoteOracle = function() {
+            const responses = [
+                '"The void whispers of a rare creature on floor 12."',
+                '"Your bond with Lumina will deepen within 24 hours."',
+                '"A storm is coming to the delve — prepare double rations."',
+                '"The next creature you capture will have a hidden trait."',
+                '"Fuse a fire and ice creature to unlock a unique ability."'
+            ];
+            const answer = responses[Math.floor(Math.random() * responses.length)];
+            showToast('🔮 Remote Oracle', answer, '✨');
+            companionData.remoteOracleHistory.push({ time: Date.now(), answer });
+        };
+
+        // ==================== Tabs ====================
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const target = this.dataset.tab;
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+                    document.getElementById(`tab-${target}`).style.display = 'block';
+                    currentTab = target;
+                });
+            });
+        }
+
+        // ==================== Toast ====================
+        function showToast(title, desc, icon = '✦') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<div style="font-size:1.4rem;">${icon}</div><div><div style="font-weight:600;">${title}</div><div style="font-size:0.7rem; opacity:0.8;">${desc}</div></div>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3500);
+        }
+
+        // ==================== Init ====================
+        function init() {
+            loadGameState();
+            loadCompanionData();
+            setupTabs();
+            renderAll();
+
+            // periodic timer update
+            setInterval(() => {
+                renderActiveExpeditions();
+                // check for completed expeditions and give rewards
+                const now = Date.now();
+                const completed = companionData.expeditions.filter(e => e.endTime <= now);
+                if (completed.length > 0) {
+                    completed.forEach(exp => {
+                        // apply rewards to gameState
+                        gameState.gold = (gameState.gold || 0) + exp.rewardGold;
+                        gameState.mana = Math.min(gameState.maxMana, (gameState.mana || 0) + exp.rewardMana);
+                        if (exp.rewardItem && gameState.forgeMats) {
+                            gameState.forgeMats[exp.rewardItem] = (gameState.forgeMats[exp.rewardItem] || 0) + 1;
+                        }
+                        showToast('Expedition Complete!', `${exp.name} returned with rewards`, '🎉');
+                    });
+                    // remove completed
+                    companionData.expeditions = companionData.expeditions.filter(e => e.endTime > now);
+                    saveCompanionData();
+                    // write back to main game
+                    try {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+                    } catch(e) {}
+                    renderOverview();
+                    renderExpeditionSelect();
+                }
+            }, 1000);
+
+            document.getElementById('syncBtn').addEventListener('click', () => {
+                syncFromMain();
+            });
+
+            // creature selection from dropdown
+            document.getElementById('exp-creature-select').addEventListener('change', function(e) {
+                const val = parseInt(e.target.value);
+                if (val) {
+                    selectedCreatureId = val;
+                    document.getElementById('start-expedition-btn').disabled = false;
+                    renderCreatures(); // highlight
+                } else {
+                    selectedCreatureId = null;
+                    document.getElementById('start-expedition-btn').disabled = true;
+                    renderCreatures();
+                }
+            });
+        }
+
+        window.CompanionApp = CompanionApp;
+        window.CompanionApp.showToast = showToast;
+        window.CompanionApp.renderCreatures = renderCreatures;
+
+        // Start
+        init();
+    })();
+</script>
+</body>
+</html>
